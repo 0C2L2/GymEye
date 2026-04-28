@@ -16,16 +16,28 @@ const CameraView = ({ onResults }) => {
     const setupMediaPipe = async () => {
       try {
         const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm"
         );
-        poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
-            delegate: "GPU"
-          },
-          runningMode: "VIDEO",
-          numPoses: 1
-        });
+
+        const modelUrl = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+
+        // Try GPU first, fall back to CPU if not supported
+        try {
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: modelUrl, delegate: "GPU" },
+            runningMode: "VIDEO",
+            numPoses: 1
+          });
+          console.log("MediaPipe loaded with GPU delegate.");
+        } catch (gpuErr) {
+          console.warn("GPU delegate failed, falling back to CPU:", gpuErr);
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: modelUrl, delegate: "CPU" },
+            runningMode: "VIDEO",
+            numPoses: 1
+          });
+          console.log("MediaPipe loaded with CPU delegate.");
+        }
         
         ctx = canvasRef.current.getContext('2d');
         drawingUtils = new DrawingUtils(ctx);
@@ -33,7 +45,7 @@ const CameraView = ({ onResults }) => {
         startCamera();
       } catch (err) {
         console.error("MediaPipe Init Error:", err);
-        setError("Failed to load AI model. Please check your connection.");
+        setError(`Failed to load AI model: ${err.message || err}. Check your internet connection and try refreshing.`);
         setLoading(false);
       }
     };
