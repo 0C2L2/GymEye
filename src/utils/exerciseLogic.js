@@ -60,14 +60,26 @@ class OneEuroFilter {
 
 export class ExerciseTracker {
   constructor() {
-    this.count = 0;
-    this.stage = 'up';
     this.feedback = '';
     this.detectedExercise = EXERCISES.NONE;
+    
+    // Per-exercise state — prevents count resets when exercise briefly flickers
+    this.exerciseState = {
+      [EXERCISES.SQUAT]: { count: 0, stage: 'up' },
+      [EXERCISES.PUSHUP]: { count: 0, stage: 'up' },
+      [EXERCISES.PLANK]: { count: 0, stage: 'up' },
+    };
     
     // Smoothers for important landmarks (Hips, Knees, Shoulders, Elbows)
     this.smoothers = {};
     this.history = []; // Hold recent exercise predictions for stability
+    this.stableFrames = 0; // Hysteresis counter for exercise switching
+  }
+
+  /** Returns the current count for whichever exercise is active */
+  get count() {
+    const state = this.exerciseState[this.detectedExercise];
+    return state ? state.count : 0;
   }
 
   getSmoother(id) {
@@ -101,9 +113,9 @@ export class ExerciseTracker {
     const ankle = landmarks[28];
     const elbow = landmarks[14];
 
-    // Check orientation
-    const isHorizontal = Math.abs(shoulder.y - hip.y) < 0.2 && Math.abs(hip.y - ankle.y) < 0.2;
-    const isVertical = Math.abs(shoulder.x - hip.x) < 0.2 && Math.abs(hip.x - ankle.x) < 0.2;
+    // Check orientation — widened thresholds (0.3) to tolerate natural body sway during movement
+    const isHorizontal = Math.abs(shoulder.y - hip.y) < 0.25 && Math.abs(hip.y - ankle.y) < 0.25;
+    const isVertical = Math.abs(shoulder.x - hip.x) < 0.35 && Math.abs(hip.x - ankle.x) < 0.35;
 
     let prediction = EXERCISES.NONE;
 
@@ -119,19 +131,27 @@ export class ExerciseTracker {
        prediction = EXERCISES.SQUAT;
     }
 
-    // Stabilize prediction over 10 frames
+    // Stabilize prediction over 20 frames (increased from 10 for better stability)
     this.history.push(prediction);
-    if (this.history.length > 10) this.history.shift();
+    if (this.history.length > 20) this.history.shift();
     
     const counts = {};
     this.history.forEach(ex => counts[ex] = (counts[ex] || 0) + 1);
     const mostFreq = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
 
+    // Hysteresis: require the new exercise to dominate for 12+ frames before switching
+    // This prevents brief flickers from resetting the active exercise
     if (mostFreq !== this.detectedExercise) {
+      this.stableFrames++;
+      if (this.stableFrames >= 12) {
         this.detectedExercise = mostFreq;
-        this.reset();
+        this.stableFrames = 0;
+      }
+    } else {
+      this.stableFrames = 0;
     }
-    return mostFreq;
+
+    return this.detectedExercise;
   }
 
   update(rawLandmarks) {
@@ -155,20 +175,21 @@ export class ExerciseTracker {
     const knee = landmarks[26];
     const ankle = landmarks[28];
     const angle = calculateAngle(hip, knee, ankle);
+    const state = this.exerciseState[EXERCISES.SQUAT];
 
-    if (angle > 165) {
-      this.stage = 'up';
+    if (angle > 160) {
+      state.stage = 'up';
       this.feedback = '';
     }
-    if (angle < 95 && this.stage === 'up') {
-      this.stage = 'down';
-      this.count++;
+    if (angle < 110 && state.stage === 'up') {
+      state.stage = 'down';
+      state.count++;
       this.feedback = 'Good Depth!';
-    } else if (angle < 130 && angle > 95 && this.stage === 'up') {
+    } else if (angle < 140 && angle >= 110 && state.stage === 'up') {
         this.feedback = 'Go Lower!';
     }
 
-    return { count: this.count, feedback: this.feedback, angle };
+    return { count: state.count, feedback: this.feedback, angle };
   }
 
   processPushUp(landmarks) {
@@ -176,23 +197,30 @@ export class ExerciseTracker {
     const elbow = landmarks[14];
     const wrist = landmarks[16];
     const angle = calculateAngle(shoulder, elbow, wrist);
+    const state = this.exerciseState[EXERCISES.PUSHUP];
 
-    if (angle > 160) {
-      this.stage = 'up';
+    if (angle > 155) {
+      state.stage = 'up';
       this.feedback = '';
     }
-    if (angle < 100 && this.stage === 'up') {
-      this.stage = 'down';
-      this.count++;
+    if (angle < 110 && state.stage === 'up') {
+      state.stage = 'down';
+      state.count++;
       this.feedback = 'Great Push-up!';
     }
 
-    return { count: this.count, feedback: this.feedback, angle };
+    return { count: state.count, feedback: this.feedback, angle };
   }
 
   reset() {
-    this.count = 0;
-    this.stage = 'up';
+    this.exerciseState = {
+      [EXERCISES.SQUAT]: { count: 0, stage: 'up' },
+      [EXERCISES.PUSHUP]: { count: 0, stage: 'up' },
+      [EXERCISES.PLANK]: { count: 0, stage: 'up' },
+    };
     this.feedback = '';
+    this.history = [];
+    this.stableFrames = 0;
+    this.detectedExercise = EXERCISES.NONE;
   }
 }
