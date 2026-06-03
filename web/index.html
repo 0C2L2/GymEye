@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gym Eye Integrated Dashboard</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b1220'/%3E%3Ctext x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial,sans-serif' font-size='26' fill='%2367e8f9'%3EGE%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar" id="topbar">
+      <div class="brand-block">
+        <div class="brand-mark">GE</div>
+        <div>
+          <p class="eyebrow">Integrated System</p>
+          <h1>Gym Eye Dashboard</h1>
+          <p class="subtitle">project_last_set backend bridge + GymEye exercise intelligence</p>
+        </div>
+      </div>
+
+      <div class="toolbar" id="toolbar">
+        <label class="field compact">
+          <span>Mode</span>
+          <select id="modeSelect">
+            <option value="auto">Auto</option>
+            <option value="demo">Demo</option>
+            <option value="browser_ai">Browser AI</option>
+            <option value="live">Live Backend</option>
+          </select>
+        </label>
+        <button id="startBrowserBtn" class="btn accent">Start Browser AI</button>
+        <button id="stopBrowserBtn" class="btn ghost">Stop Browser AI</button>
+        <button id="saveSessionBtn" class="btn ghost">Save Session</button>
+      </div>
+    </header>
+
+    <section class="control-bar" id="controlBar">
+      <div class="field grow">
+        <span>Backend HTTP URL</span>
+        <input id="httpUrl" type="text" value="http://localhost:8000" />
+      </div>
+      <div class="field grow">
+        <span>Backend WebSocket URL</span>
+        <input id="wsUrl" type="text" value="ws://localhost:8000/ws" />
+      </div>
+      <button id="connectBtn" class="btn accent">Reconnect Backend</button>
+    </section>
+
+    <main class="dashboard">
+      <div class="primary-column">
+        <section class="panel camera-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Live Camera / Frame Area</p>
+              <h2>Workout view</h2>
+            </div>
+            <div class="chip-row">
+              <span class="chip" id="cameraSourceChip">Camera Source: Demo</span>
+              <span class="chip" id="modeChip">Mode: Demo</span>
+            </div>
+          </div>
+
+          <div class="frame-shell">
+            <video id="browserVideo" autoplay playsinline muted></video>
+            <canvas id="overlayCanvas"></canvas>
+            <img id="backendFrame" alt="Backend frame stream" />
+            <div class="frame-placeholder" id="framePlaceholder">
+              <strong>No live frame available</strong>
+              <span>Use Demo mode, start Browser AI, or connect the backend frame stream.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel trainer-panel">
+          <div class="rep-hero">
+            <p class="eyebrow">Trainer Mode</p>
+            <div class="rep-count" id="repCountHero">0 / 15</div>
+            <div class="rep-meta">
+              <span id="repCorrect">Correct: 0</span>
+              <span id="repIncorrect">Incorrect: 0</span>
+              <span id="repRemaining">Remaining: 15</span>
+            </div>
+          </div>
+          <div class="feedback-hero">
+            <p class="eyebrow">Active Feedback</p>
+            <p class="feedback-copy" id="activeFeedback">No major mistake detected. Keep going.</p>
+          </div>
+        </section>
+
+        <div class="mobile-controls-mount" id="mobileControlsMount"></div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Rep-by-Rep Breakdown</p>
+              <h2>Rep analysis</h2>
+            </div>
+            <span class="subtle" id="repBreakdownCount">0 reps</span>
+          </div>
+          <div class="rep-breakdown" id="repBreakdown"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Session History</p>
+              <h2>Saved workouts</h2>
+            </div>
+            <span class="subtle">Local storage</span>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </section>
+      </div>
+
+      <div class="secondary-column">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Connection Status</p>
+              <h2>System health</h2>
+            </div>
+            <span class="status-pill" id="backendStatusPill">Disconnected</span>
+          </div>
+          <div class="status-grid" id="connectionGrid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Current Exercise</p>
+              <h2 id="exerciseName">Waiting for movement</h2>
+            </div>
+            <span class="score-pill" id="confidencePill">--</span>
+          </div>
+          <div class="two-col-grid" id="exerciseMeta"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Workout Stats</p>
+              <h2>Live metrics</h2>
+            </div>
+          </div>
+          <div class="stats-grid" id="statsGrid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Form Score</p>
+              <h2 id="formScoreHeading">--</h2>
+            </div>
+            <span class="status-pill" id="formScoreStatus">Waiting</span>
+          </div>
+          <div class="score-bars" id="scoreBars"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Mistake Tracking</p>
+              <h2>Issues to fix</h2>
+            </div>
+          </div>
+          <div class="mistake-list" id="mistakeList"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Session Summary</p>
+              <h2>Latest result</h2>
+            </div>
+          </div>
+          <div class="summary-grid" id="summaryGrid"></div>
+          <div class="recommendations" id="recommendations"></div>
+        </section>
+      </div>
+    </main>
+
+    <section class="panel debug-panel">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Integration Debug Panel</p>
+          <h2>Transport + normalization</h2>
+        </div>
+      </div>
+      <div class="debug-grid">
+        <div class="debug-card">
+          <h3>Connection</h3>
+          <pre id="connectionDebug"></pre>
+        </div>
+        <div class="debug-card">
+          <h3>Last raw payload</h3>
+          <pre id="rawPayloadDebug"></pre>
+        </div>
+        <div class="debug-card">
+          <h3>Normalized GymEyeAnalysis</h3>
+          <pre id="normalizedPayloadDebug"></pre>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

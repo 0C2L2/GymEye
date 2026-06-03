@@ -1,0 +1,4 @@
+.analysis/
+backend/.venv/
+__pycache__/
+*.pyc
