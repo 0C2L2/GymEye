@@ -1,196 +1,76 @@
-# Gym Eye Integrated System
+# AI Gym Coach 🏋️‍♂️🤖
 
-This repository is now the main **Gym Eye** system. It is not two separate projects pasted together.
+> **Transform any smartphone or laptop camera into a personal AI fitness coach.**
 
-`project_last_set` remains the source of truth for the full system structure:
+[![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-00D1FF?style=for-the-badge&logo=google&logoColor=white)](https://mediapipe.dev/)
 
-- `backend/` is the live analysis bridge
-- `web/` is the connected Gym Eye dashboard
-- `pipeline/`, `ros2/`, and `gazebo/` publish exercise state into the backend
+---
 
-Useful GymEye functionality was integrated into this system:
+## 🌟 Overview
+**AI Gym Coach** is a real-time computer vision application that provides professional-grade fitness guidance using only your browser. By leveraging on-device machine learning, it tracks your body mechanics, counts your repetitions, and gives you instant feedback on your form—ensuring every rep counts while minimizing injury risk.
 
-- browser-side pose analysis mode
-- exercise detection and rep counting patterns
-- One-Euro smoothing
-- live form feedback
-- rep-by-rep breakdown
-- local session history and summary views
+---
 
-## System modes
+## 🔥 Key Features
 
-The web dashboard supports one connected data model across these modes:
+### 🔍 Automatic Exercise Detection
+No more manual selecting! The AI intelligently identifies whether you're performing **Squats**, **Push-ups**, or **Planks** based on your body orientation and joint angles.
 
-| Mode | Description |
-|---|---|
-| `Demo` | Mock workout state when backend and browser AI are unavailable |
-| `Browser AI` | Browser camera + MediaPipe pose analysis |
-| `Live Backend` | WebSocket or REST state coming from the FastAPI backend |
-| `Auto` | Prefer WebSocket, then REST, then Browser AI, then Demo |
+### 🛡️ One-Euro Smoothing
+Integrated jitter-reduction logic ensure that the skeletal overlay and angle tracking remain stable even in variable lighting conditions, providing a premium, jitter-free experience.
 
-## Shared analysis contract
+### 🏆 Session Badges & History
+Stay motivated by "collecting" workout badges during your session. Once finished, save your performance to the **History Sidebar** to track your progress over days and weeks.
 
-All sources normalize into one `GymEyeAnalysis` shape in `backend/analysis_contract.py` and `web/modules/normalizeAnalysis.js`.
+### 💎 Premium Dark UI
+A futuristic, glassmorphic interface designed for clarity and visual impact. Real-time stats cards keep you focused on your goals.
 
-That means all of these feed the same dashboard:
+---
 
-```txt
-Demo mock data
-Browser AI results
-Legacy backend payloads
-Raspberry Pi / pipeline updates
-Gazebo / robot pose updates
-```
+## 🛠️ Tech Stack
+- **Frontend Core**: React 18 & Vite
+- **Computer Vision**: Google MediaPipe (BlazePose)
+- **Styling**: Vanilla CSS (Modern Custom Properties)
+- **State Management**: React Hooks & LocalStorage
+- **Icons**: Lucide React
 
-## Backend bridge
+---
 
-The backend keeps the latest normalized analysis state in memory and exposes:
+## 🚀 Getting Started
 
-- `GET /health`
-- `GET /state`
-- `POST /analysis`
-- `POST /update` (legacy compatibility)
-- `POST /state` (compatibility)
-- `POST /frame`
-- `GET /frame`
-- `GET /ws`
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v18 or higher recommended)
+- A webcam-enabled device
 
-The main integration flow is:
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/ai-gym-coach.git
+   cd ai-gym-coach
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-```txt
-Camera / Raspberry Pi / Browser Demo
-        ↓
-Pose + Exercise Analysis
-        ↓
-Normalized Analysis Payload
-        ↓
-FastAPI state bridge
-        ↓
-WebSocket + REST fallback
-        ↓
-Gym Eye dashboard + history + summary
-```
+---
 
-## Quick start
+## 🧭 Usage
+1. Position your device so your full body is visible in the frame.
+2. Begin moving! The AI will detect the exercise and start tracking your reps.
+3. Use the **Save & Reset** button to store your session data.
+4. Access the **Menu icon** (top right) to review your workout history.
 
-### Backend
+---
 
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app:app --host 0.0.0.0 --port 8000
-```
+## 📜 License
+Distributed under the MIT License. See `LICENSE` for more information.
 
-### Web dashboard
-
-```bash
-cd web
-python3 -m http.server 5173
-```
-
-Open:
-
-```txt
-http://localhost:5173
-```
-
-The `web/` dashboard is a static HTML/CSS/JS app. It does not currently use `npm run build` or `npm run lint`.
-
-### Optional simulator publisher
-
-```bash
-cd backend
-python3 sim_publisher.py
-```
-
-### Optional webcam pipeline
-
-```bash
-cd pipeline
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python3 webcam_pose.py
-```
-
-### Optional Gazebo adapter
-
-```bash
-export GZ_SIM_RESOURCE_PATH=$PWD/gazebo/models
-gz sim gazebo/worlds/gym.world
-```
-
-In another terminal:
-
-```bash
-cd gazebo
-python3 gymbot_adapter.py
-```
-
-## Testing with curl
-
-You can simulate a Raspberry Pi update with:
-
-```bash
-curl -X POST http://localhost:8000/analysis \
-  -H "Content-Type: application/json" \
-  -d '{
-    "exercise": "squat",
-    "rep_count": 7,
-    "form_score": 78,
-    "feedback": "Keep your knees aligned with your toes",
-    "mistakes": [
-      {
-        "label": "Knees caving inward",
-        "severity": "medium",
-        "suggestion": "Push your knees outward"
-      }
-    ],
-    "source": "raspberry_pi"
-  }'
-```
-
-Then verify:
-
-- `GET /state`
-- live update in the web dashboard
-- rep counter, exercise, and feedback refresh without reload
-
-## Frontend behavior
-
-The dashboard now includes:
-
-- live camera or backend frame area
-- large rep counter
-- active feedback card
-- current exercise panel
-- form score and sub-scores
-- mistake tracking
-- rep-by-rep breakdown
-- local session history
-- integration debug panel
-
-## Browser AI note
-
-Browser AI mode is optional. It uses browser camera access and tries to load MediaPipe pose assets in the browser. If the model runtime is unavailable, the dashboard still works in Demo and Live Backend modes.
-The Browser AI runtime was integrated and the browser camera permission flow was verified, but full pose-quality validation still depends on a real human camera session.
-
-## Limitations
-
-- Session history is currently local browser storage only
-- Browser AI depends on browser camera permissions and MediaPipe runtime availability
-- Browser AI mode has not yet been fully verified with a real browser camera session in this validation pass
-- Upstream ROS2, Gazebo, and Raspberry Pi publishers still decide how rich their outgoing payloads are
-- No database or user authentication is added in this step
-
-## Key files
-
-- `INTEGRATION_NOTES.md`
-- `backend/app.py`
-- `backend/analysis_contract.py`
-- `web/index.html`
-- `web/app.js`
-- `web/modules/browserAI.js`
-- `web/modules/normalizeAnalysis.js`
+---
